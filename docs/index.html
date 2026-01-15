@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <title>Bedford and Franklin County SOS Dashboard</title> 
+    
+    <style>
+        html, body {
+           padding: 0; margin: 0; height: 100%; width: 100%;
+           background-color: #abd7d4; overflow: hidden; font-family: sans-serif;
+        }
+        #header {
+            width: 100%; background-color: #abd7d4; height: 60px;
+            text-align: center; color: white; padding-top: 5px; box-sizing: border-box; 
+        }
+        #header h1 { margin: 0; font-size: 35px; line-height: 60px; }
+        
+        #legendDiv {
+            float: left; width: 20%; height: calc(100% - 60px); 
+            background-color: #abd7d4; color: white; padding: 10px;
+            box-sizing: border-box; overflow-y: auto;
+        }
+
+        /* --- Custom Phosphorus Legend Styles --- */
+        .custom-legend {
+            background-color: rgba(255, 255, 255, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+        .color-box {
+            width: 20px;
+            height: 20px;
+            margin-right: 10px;
+            border: 1px solid rgba(255,255,255,0.3);
+            flex-shrink: 0;
+        }
+
+        #centerWrapper {
+            float: left; width: 45%; height: calc(100% - 60px);
+            box-sizing: border-box; border-right: 2px solid #abd7d4;
+        }
+        #rightColumn { float: right; width: 35%; height: calc(100% - 60px); }
+        .titleDiv {
+            height: 30px; width: 100%; background-color: gray;
+            color: white; text-align: center; font-weight: 400;
+            font-size: 20px; line-height: 30px; box-sizing: border-box;
+            border-left: 8px solid #abd7d4;
+        }
+        #viewDivMain { width: 100%; height: calc(100% - 30px); }
+        #viewDivTop, #viewDivBottom { width: 100%; height: 45%; border-left: 8px solid #abd7d4; }
+        
+        .esri-layer-list {
+        background-color: transparent !important;
+    }
+    
+    .esri-layer-list__item {
+        background-color: transparent !important;
+        color: white !important; /* This makes the text white to match your sidebar */
+    }
+
+    .esri-layer-list__item-title {
+        color: white !important;
+    }
+
+    /* This changes the color of the "eye" icon and arrows */
+    .esri-icon-visible, .esri-icon-non-visible, .esri-layer-list__child-toggle {
+        color: white !important;
+    }
+    </style>
+
+    <link rel="stylesheet" href="https://js.arcgis.com/4.34/esri/themes/light/main.css">
+    <script src="https://js.arcgis.com/4.34/"></script>
+
+    <script>
+        require([ 
+            "esri/WebMap",
+            "esri/Map",
+            "esri/views/MapView",
+            "esri/layers/FeatureLayer",
+            "esri/widgets/Search",
+            "esri/widgets/Legend",
+            "esri/widgets/LayerList"
+        ], function(WebMap, Map, MapView, FeatureLayer, Search, Legend, LayerList) {
+        
+            // 1. CENTER MAP - Season Scores
+            var sosWebMap = new WebMap({
+                portalItem: {
+                    id: "68d0b0d8e2c2450a8c6a69296e4db249" 
+                }
+            });
+
+            // Set basemap to gray canvas
+            sosWebMap.basemap = "gray-vector";
+            
+            var viewMain = new MapView({
+                container: "viewDivMain",
+                map: sosWebMap, 
+                center: [-79.8, 37.056],
+                zoom: 9.75
+            }); 
+
+            // 2. TOP MAP - Year Average
+                var SOSyearWebMap = new WebMap({
+                portalItem: {
+                        id: "1618ed72e48646bdbd288c3c6d5babc5" 
+                    }
+                });
+            
+            SOSyearWebMap.basemap = "gray-vector";
+            
+           var viewTop = new MapView({
+                container: "viewDivTop", 
+                map: SOSyearWebMap, // This loads the map AND all the layers you styled in Pro
+                center: [-79.8, 37.056],
+                zoom: 9.75,
+                ui: { components: [] } 
+            });
+            
+            // 3. BOTTOM MAP - SOS Sites
+            var sosSitesWebMap = new WebMap ({
+             portalItem: { id: "7afa126b4f6a451d8bb759982c8920b8"} 
+            });
+            
+            sosSitesWebMap.basemap = "gray-vector";
+            
+            var viewBottom = new MapView({
+                container: "viewDivBottom",
+                map: sosSitesWebMap,
+                center: [-79.8, 37.056],
+                zoom: 9.75,
+                ui: { components: [] } 
+            });
+            
+
+            // Widgets
+            var searchWidget = new Search({ view: viewMain, container: "search-container" });
+
+            const defineActions = function(event) {
+                const item = event.item;
+            };
+
+            // LayerList for top and bottom maps
+            const layerLists = [
+                new LayerList({ view: viewMain, container: "legend-sos-toggle" }),
+                new LayerList({ view: viewTop, container: "legend-sosyear" }),
+                new LayerList({ view: viewBottom, container: "legend-sossites", })
+            ];
+            
+            // Map Synchronization logic
+            const views = [viewMain, viewTop, viewBottom];
+            let active;
+
+            const sync = (source) => {
+                if (!active || !active.viewpoint || active !== source) { return; }
+                for (const view of views) {
+                    if (view !== active) { view.viewpoint = active.viewpoint; }
+                }
+            };
+
+            for (const view of views) {
+                view.watch(["interacting", "animation"], () => {
+                    active = view;
+                    sync(active);
+                });
+                view.watch("viewpoint", () => sync(view));
+            }
+        });
+    </script> 
+</head>
+
+<body>
+    <div id="header">
+        <h1>Bedford and Franklin County SOS Dashboard</h1>
+    </div>
+        
+    <div id="legendDiv">
+        <div id="search-container"></div>
+        <h3>Legend</h3>
+        
+        <h4>SOS Scores</h4>
+        <div class="custom-legend">
+            <div class="legend-item"><div class="color-box" style="background-color: red;"></div> &lt; 7 Unacceptable</div>
+            <div class="legend-item"><div class="color-box" style="background-color: orangered;"></div> 8 Gray Zone</div>
+            <div class="legend-item"><div class="color-box" style="background-color: darkgreen"></div> &gt; 9 Acceptable</div>
+        </div>
+        
+        <div id="legend-sos-toggle"></div>
+
+        <h4>SOS Year Averages</h4>
+        <div id="legend-sosyear"></div> 
+        
+        <h4>Average Bacteria Levels</h4>
+        <div id="legend-sossites"></div> 
+    </div>
+
+    <div id="centerWrapper">
+        <div class="titleDiv">SOS Season Score</div>
+        <div id="viewDivMain"></div>
+    </div>
+
+    <div id="rightColumn">
+        <div class="titleDiv">SOS Year Averages</div>
+        <div id="viewDivTop"></div>
+        <div class="titleDiv">SOS Sites</div>
+        <div id="viewDivBottom"></div>
+    </div>
+</body>
+</html>
